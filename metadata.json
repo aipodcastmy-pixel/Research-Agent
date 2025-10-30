@@ -1,0 +1,5 @@
+{
+  "name": "Research Agent",
+  "description": "An AI-powered web browsing agent for deep research. It leverages Gemini to autonomously search and synthesize information from the web to answer your questions.",
+  "requestFramePermissions": []
+}
