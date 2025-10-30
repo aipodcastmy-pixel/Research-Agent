@@ -82,6 +82,10 @@ export async function generatePlan(query: string, settings: Settings): Promise<{
         },
     });
 
+    if (response.candidates?.[0]?.finishReason === 'SAFETY') {
+        throw new Error("SAFETY_BLOCK: The planning phase was blocked due to safety settings. Your query may contain sensitive terms.");
+    }
+
     const responseText = response.text;
     try {
         let jsonString = responseText;
@@ -113,6 +117,10 @@ export async function* streamResearchProcess(query: string, searchQueries: strin
                 tools: [{ googleSearch: {} }],
             }
         });
+
+        if (response.candidates?.[0]?.finishReason === 'SAFETY') {
+            throw new Error(`SAFETY_BLOCK: A search step for "${searchQuery}" was blocked due to safety settings. Web content found may have been inappropriate.`);
+        }
 
         summaries.push(`Summary for query "${searchQuery}":\n${response.text}`);
         

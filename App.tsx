@@ -215,14 +215,16 @@ const App: React.FC = () => {
         if (error instanceof Error) {
             if (error.message.includes("API_KEY")) {
                  friendlyErrorMessage = "There seems to be an issue with your API Key. Please ensure it is correctly configured.";
+            } else if (error.message.includes("SAFETY_BLOCK")) {
+                friendlyErrorMessage = "The request was blocked for safety reasons. This can happen if the query or web search results contain sensitive content. Please try rephrasing your request.";
             } else if (error.message.toLowerCase().includes('failed to fetch')) {
                 friendlyErrorMessage = "A network error occurred. Please check your internet connection and try again.";
             } else if (error.message.includes("400") && error.message.includes("INVALID_ARGUMENT")) {
-                 friendlyErrorMessage = "The request sent to the model was invalid. This might be due to a configuration issue or a problem with the prompt. Please try again or adjust the settings.";
+                 friendlyErrorMessage = "The request sent to the model was invalid. This might be due to a configuration issue. Please try again or adjust the settings.";
             } else if (error.message.includes("429")) {
                 friendlyErrorMessage = "The service is currently overloaded (rate limit exceeded). Please wait a moment before trying again.";
             } else {
-                friendlyErrorMessage = `An unexpected error occurred. Please see the details below.`;
+                friendlyErrorMessage = `An unexpected error occurred. Please try again, or if the problem persists, check the details below.`;
             }
         }
 
