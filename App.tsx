@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage, Source, Settings } from './types';
 import { generatePlan, streamResearchProcess, ResearchStreamEvent } from './services/geminiService';
@@ -125,13 +126,14 @@ const App: React.FC = () => {
         }
 
         const rawErrorMessage = error instanceof Error ? error.message : String(error);
+        const timestamp = new Date().toLocaleString();
         
         setMessages(prev => prev.map(msg => 
             msg.id === assistantMessageId 
             ? { 
                 ...msg, 
                 status: 'error',
-                content: `Sorry, I encountered an error.\n\n**${friendlyErrorMessage}**\n\n**Details:**\n\`\`\`\n${rawErrorMessage}\n\`\`\``,
+                content: `Sorry, I encountered an error.\n\n**${friendlyErrorMessage}**\n\n**Details:**\nTimestamp: ${timestamp}\n\n\`\`\`\n${rawErrorMessage}\n\`\`\``,
                 plan: 'Failed to generate plan.',
                 searchQueries: [],
             } 
