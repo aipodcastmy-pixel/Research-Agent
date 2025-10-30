@@ -109,18 +109,7 @@ const App: React.FC = () => {
   const handleSendMessage = async (input: string) => {
     if (!input.trim() || isThinking) return;
 
-    let currentConversationId = activeConversationId;
-    const currentConvo = currentConversationId ? conversations[currentConversationId] : null;
-
-    // If the current conversation is empty/new, create a new one.
-    if (!currentConvo || currentConvo.messages.length === 1) {
-       currentConversationId = handleNewConversation();
-    }
-    
-    if (!currentConversationId) {
-        console.error("No active conversation to send message to.");
-        return;
-    }
+    setIsThinking(true);
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -136,31 +125,70 @@ const App: React.FC = () => {
       status: 'planning',
     };
 
-    const updateMessages = (updater: (prevMessages: ChatMessage[]) => ChatMessage[]) => {
-      if (!currentConversationId) return;
+    let conversationIdForProcess: string;
+    
+    const currentConvo = activeConversationId ? conversations[activeConversationId] : null;
+    const isNewOrEmptyConvo = !currentConvo || currentConvo.messages.length <= 1;
+
+    if (isNewOrEmptyConvo) {
+      // Create a new conversation with the initial messages included.
+      const newId = `convo-${Date.now()}`;
+      conversationIdForProcess = newId;
+
+      const newConversation: Conversation = {
+        id: newId,
+        title: input.substring(0, 40) + (input.length > 40 ? '...' : ''),
+        messages: [
+          {
+            id: 'init',
+            role: 'assistant',
+            content: "I am the Research Agent. What topic would you like me to investigate for you?",
+            status: 'complete'
+          },
+          userMessage,
+          assistantMessage
+        ],
+      };
+      
+      setConversations(prev => ({
+        ...prev,
+        [newId]: newConversation,
+      }));
+      setActiveConversationId(newId);
+    } else {
+      // Update the existing conversation.
+      conversationIdForProcess = activeConversationId!;
+
       setConversations(prev => {
-        const activeConvo = prev[currentConversationId!];
+        const convoToUpdate = prev[conversationIdForProcess];
+        // This should not happen in this branch, but it's a safe guard.
+        if (!convoToUpdate) return prev;
+        
+        const isFirstUserMessage = convoToUpdate.messages.filter(m => m.role === 'user').length === 0;
+        const newTitle = isFirstUserMessage ? (input.substring(0, 40) + (input.length > 40 ? '...' : '')) : convoToUpdate.title;
+
+        return {
+          ...prev,
+          [conversationIdForProcess]: {
+            ...convoToUpdate,
+            title: newTitle,
+            messages: [...convoToUpdate.messages, userMessage, assistantMessage],
+          }
+        };
+      });
+    }
+
+    const updateMessages = (updater: (prevMessages: ChatMessage[]) => ChatMessage[]) => {
+      // This closure will capture the correct conversationIdForProcess
+      setConversations(prev => {
+        const activeConvo = prev[conversationIdForProcess];
         if (!activeConvo) return prev;
         return {
           ...prev,
-          [currentConversationId!]: { ...activeConvo, messages: updater(activeConvo.messages) },
+          [conversationIdForProcess]: { ...activeConvo, messages: updater(activeConvo.messages) },
         };
       });
     };
-
-    const isFirstUserMessage = (conversations[currentConversationId].messages.filter(m => m.role === 'user').length === 0);
-    const newTitle = isFirstUserMessage ? (input.substring(0, 40) + (input.length > 40 ? '...' : '')) : conversations[currentConversationId].title;
-
-    setConversations(prev => ({
-        ...prev,
-        [currentConversationId!]: {
-            ...prev[currentConversationId!],
-            title: newTitle,
-            messages: [...prev[currentConversationId!].messages, userMessage, assistantMessage],
-        }
-    }));
-    
-    setIsThinking(true);
 
     try {
       // Step 1: Generate Plan
