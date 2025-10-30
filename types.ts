@@ -1,3 +1,9 @@
+export interface Settings {
+  provider: 'google';
+  language: 'auto' | 'en' | 'zh' | 'ms';
+  model: 'gemini-2.5-flash';
+}
+
 export interface Source {
   uri: string;
   title: string;

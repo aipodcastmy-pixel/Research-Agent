@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import type { Source } from '../types';
+import type { Settings, Source } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -9,7 +9,15 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-const PLANNING_PROMPT = `You are a world-class AI research analyst. Your mission is to create a research plan to produce a professional, data-driven research report based on the user's query.
+const getPlanningPrompt = (settings: Settings): string => {
+  const languageDirective = {
+    'auto': "Your plan must be written in the same language as the user's query.",
+    'en': "Your plan must be written in English.",
+    'zh': "Your plan must be written in Mandarin Chinese (简体中文).",
+    'ms': "Your plan must be written in Malay (Bahasa Melayu)."
+  }[settings.language];
+
+  return `You are a world-class AI research analyst. Your mission is to create a research plan to produce a professional, data-driven research report based on the user's query.
 
 **Your operational process is as follows:**
 
@@ -18,7 +26,8 @@ const PLANNING_PROMPT = `You are a world-class AI research analyst. Your mission
 3.  **Generate Structured Output:** Produce a structured JSON object containing your thought process and the search queries you decided on.
 
 **Key Directives:**
--   **Multi-Lingual Search Strategy:** Your plan should be written in the same language as the user's query. However, you MUST generate search queries in the most effective language(s) for the topic. For region-specific topics (e.g., about Malaysia), generate search queries in relevant local languages (like Malay) and English to ensure comprehensive results.
+-   **Language:** ${languageDirective}
+-   **Multi-Lingual Search Strategy:** Regardless of the plan's language, you MUST generate search queries in the most effective language(s) for the topic. For region-specific topics (e.g., about Malaysia), generate search queries in relevant local languages (like Malay) and English to ensure comprehensive results.
 -   **JSON Output:** Your entire output MUST be a single JSON code block. Do not include any text before or after the code block. The JSON object MUST have the following structure: { "plan": "...", "searchQueries": ["...", "..."] }. Example:
 \`\`\`json
 {
@@ -26,8 +35,17 @@ const PLANNING_PROMPT = `You are a world-class AI research analyst. Your mission
   "searchQueries": ["latest AI diagnostic tools", "AI drug discovery startups", "AI ethics in medicine", "aplikasi AI dalam hospital Malaysia"]
 }
 \`\`\``;
+};
 
-const REPORTING_PROMPT_TEMPLATE = (summaries: string) => `You are a world-class AI research analyst. Your mission is to write a professional, data-driven report based *only* on the provided research summaries.
+const getReportingPrompt = (summaries: string, settings: Settings): string => {
+  const languageDirective = {
+    'auto': "The final report must be in the same language as the research summaries.",
+    'en': "The final report must be written in English.",
+    'zh': "The final report must be written in Mandarin Chinese (简体中文).",
+    'ms': "The final report must be written in Malay (Bahasa Melayu)."
+  }[settings.language];
+
+  return `You are a world-class AI research analyst. Your mission is to write a professional, data-driven report based *only* on the provided research summaries.
 
 **Your operational process is as follows:**
 
@@ -41,10 +59,11 @@ ${summaries}
     -   A "Conclusion".
 
 **Key Directives:**
--   **Output Language:** The final report must be in the same language as the research summaries.
+-   **Output Language:** ${languageDirective}
 -   **Evidence-Based:** Strictly base all information on the summaries provided.
 -   **Markdown Format:** The entire output must be a single, well-formatted Markdown document. Do not wrap it in a code block.
 `;
+};
 
 const SUMMARIZER_PROMPT = "You are a research assistant. Based on the provided search results, provide a concise, factual summary. Focus on the key information relevant to the user's query. Do not add any conversational text or introductions.";
 
@@ -54,12 +73,12 @@ export type ResearchStreamEvent =
   | { type: 'sources'; sources: Source[] }
   | { type: 'status_update'; status: 'writing' };
 
-export async function generatePlan(query: string): Promise<{ plan: string; searchQueries: string[] }> {
+export async function generatePlan(query: string, settings: Settings): Promise<{ plan: string; searchQueries: string[] }> {
     const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: settings.model,
         contents: [{ role: "user", parts: [{ text: query }] }],
         config: {
-            systemInstruction: PLANNING_PROMPT,
+            systemInstruction: getPlanningPrompt(settings),
         },
     });
 
@@ -78,7 +97,7 @@ export async function generatePlan(query: string): Promise<{ plan: string; searc
 }
 
 
-export async function* streamResearchProcess(query: string, searchQueries: string[]): AsyncGenerator<ResearchStreamEvent> {
+export async function* streamResearchProcess(query: string, searchQueries: string[], settings: Settings): AsyncGenerator<ResearchStreamEvent> {
     const summaries: string[] = [];
     let allSources: Source[] = [];
 
@@ -87,7 +106,7 @@ export async function* streamResearchProcess(query: string, searchQueries: strin
         yield { type: 'search_step', query: searchQuery };
         
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: settings.model,
             contents: [{ role: "user", parts: [{ text: `User's main goal: ${query}. Current search query: ${searchQuery}` }] }],
             config: {
                 systemInstruction: SUMMARIZER_PROMPT,
@@ -114,9 +133,9 @@ export async function* streamResearchProcess(query: string, searchQueries: strin
 
     // Step 3: Generate and stream the final report
     if (summaries.length > 0) {
-        const reportingPrompt = REPORTING_PROMPT_TEMPLATE(summaries.join('\n\n'));
+        const reportingPrompt = getReportingPrompt(summaries.join('\n\n'), settings);
         const responseStream = await ai.models.generateContentStream({
-            model: "gemini-2.5-flash",
+            model: settings.model,
             contents: [{ role: "user", parts: [{ text: query }] }],
             config: {
                 systemInstruction: reportingPrompt,

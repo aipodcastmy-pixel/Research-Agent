@@ -10,7 +10,7 @@ An advanced AI-powered web browsing agent designed for conducting in-depth, tran
 -   **Live Report Generation:** See the final report being written word-by-word in real-time, as if an analyst is typing it out directly for you.
 -   **Multi-Lingual Intelligence:** The agent automatically formulates search queries in the most effective languages (e.g., English, Malay, Mandarin) to gather comprehensive data, while delivering the final report in the user's original language.
 -   **Interactive Source Citing:** All reports include clickable sources, which can be previewed directly within the app in an iframe modal, allowing for quick verification.
--   **Configurable Settings:** (Coming Soon) Customize the agent's behavior by selecting the language, AI model, and other parameters through an easy-to-use settings panel.
+-   **Configurable Settings:** Customize the agent's behavior by selecting the language and AI model through an easy-to-use settings panel.
 
 ## How It Works
 
