@@ -19,3 +19,9 @@ export interface ChatMessage {
   status?: 'planning' | 'searching' | 'writing' | 'complete' | 'error';
   currentQuery?: string | null;
 }
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+}

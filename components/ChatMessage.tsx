@@ -1,11 +1,13 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import type { ChatMessage, Source } from '../types';
 import { AgentThoughtProcess } from './AgentThoughtProcess';
 import { SearchProgress, Spinner } from './SearchProgress';
+import WebPreview from './WebPreview';
 
 interface MessageProps {
   message: ChatMessage;
-  onSourceClick?: (url: string) => void;
+  conversationTitle: string;
 }
 
 const UserIcon: React.FC = () => (
@@ -39,7 +41,27 @@ const BlinkingCursor: React.FC = () => (
   <span className="inline-block w-2 h-4 bg-sky-400 animate-pulse ml-1" />
 );
 
-const Message: React.FC<MessageProps> = ({ message, onSourceClick }) => {
+const Message: React.FC<MessageProps> = ({ message, conversationTitle }) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleSourceClick = (url: string) => {
+    setPreviewUrl(currentUrl => (currentUrl === url ? null : url));
+  };
+  
+  const handleDownload = () => {
+    if (!message.content) return;
+    const blob = new Blob([message.content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeTitle = conversationTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    a.download = `Research-Report-${safeTitle || 'untitled'}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const isUser = message.role === 'user';
 
   // A simple markdown-to-html converter
@@ -84,6 +106,8 @@ const Message: React.FC<MessageProps> = ({ message, onSourceClick }) => {
         
     const hasThoughtProcess = message.plan && message.searchQueries;
     const isResearching = message.status === 'searching' || message.status === 'writing' || (message.status === 'complete' && message.searchQueries && message.searchQueries.length > 0) || message.status === 'error';
+    const isCompleteWithContent = message.status === 'complete' && message.content;
+    const hasSources = message.sources && message.sources.length > 0;
 
     if (!isResearching) {
        return <p>{message.content}</p>; // Initial greeting
@@ -117,14 +141,33 @@ const Message: React.FC<MessageProps> = ({ message, onSourceClick }) => {
           </div>
         )}
 
-        {message.sources && message.sources.length > 0 && (
+        {(hasSources || isCompleteWithContent) && (
           <div className="mt-4 border-t border-slate-700 pt-3">
-            <h4 className="text-xs font-semibold text-slate-400 mb-2">Sources:</h4>
-            <div className="flex flex-wrap gap-2">
-              {message.sources.map((source, index) => (
-                onSourceClick && <SourceLink key={source.uri} source={source} index={index} onClick={onSourceClick} />
-              ))}
-            </div>
+            {hasSources && (
+                <div>
+                    <h4 className="text-xs font-semibold text-slate-400 mb-2">Sources:</h4>
+                    <div className="flex flex-wrap gap-2">
+                    {message.sources!.map((source, index) => (
+                        <SourceLink key={source.uri} source={source} index={index} onClick={handleSourceClick} />
+                    ))}
+                    </div>
+                    {previewUrl && <WebPreview url={previewUrl} onClose={() => setPreviewUrl(null)} />}
+                </div>
+            )}
+            {isCompleteWithContent && (
+                <div className={`flex justify-end ${hasSources ? 'mt-4' : ''}`}>
+                    <button
+                        onClick={handleDownload}
+                        className="flex items-center space-x-2 bg-slate-600/50 hover:bg-slate-500/50 text-sky-300 text-xs px-3 py-1.5 rounded-md transition-colors duration-200"
+                        title="Download report as Markdown"
+                    >
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Download Report</span>
+                    </button>
+                </div>
+            )}
           </div>
         )}
       </div>
