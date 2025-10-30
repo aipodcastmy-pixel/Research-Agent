@@ -107,19 +107,36 @@ const App: React.FC = () => {
       ));
 
     } catch (error) {
-      console.error("Research process failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-      setMessages(prev => prev.map(msg => 
-        msg.id === assistantMessageId 
-          ? { 
-              ...msg, 
-              status: 'error',
-              content: `Sorry, I encountered an error during the research process.\n\n**Error:**\n\`\`\`\n${errorMessage}\n\`\`\``,
-              plan: 'Failed to generate plan.',
-              searchQueries: [],
+        console.error("Research process failed:", error);
+        
+        let friendlyErrorMessage = "An unknown error occurred during the research process.";
+        if (error instanceof Error) {
+            if (error.message.includes("API_KEY")) {
+                 friendlyErrorMessage = "There seems to be an issue with your API Key. Please ensure it is correctly configured.";
+            } else if (error.message.toLowerCase().includes('failed to fetch')) {
+                friendlyErrorMessage = "A network error occurred. Please check your internet connection and try again.";
+            } else if (error.message.includes("400") && error.message.includes("INVALID_ARGUMENT")) {
+                 friendlyErrorMessage = "The request sent to the model was invalid. This might be due to a configuration issue or a problem with the prompt. Please try again or adjust the settings.";
+            } else if (error.message.includes("429")) {
+                friendlyErrorMessage = "The service is currently overloaded (rate limit exceeded). Please wait a moment before trying again.";
+            } else {
+                friendlyErrorMessage = `An unexpected error occurred. Please see the details below.`;
+            }
+        }
+
+        const rawErrorMessage = error instanceof Error ? error.message : String(error);
+        
+        setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+            ? { 
+                ...msg, 
+                status: 'error',
+                content: `Sorry, I encountered an error.\n\n**${friendlyErrorMessage}**\n\n**Details:**\n\`\`\`\n${rawErrorMessage}\n\`\`\``,
+                plan: 'Failed to generate plan.',
+                searchQueries: [],
             } 
-          : msg
-      ));
+            : msg
+        ));
     } finally {
       setIsThinking(false);
     }
